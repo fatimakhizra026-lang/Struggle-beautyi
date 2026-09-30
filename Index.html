@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRUGGLE BEAUTY - AI Shopping Assistant</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body {
+    background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 50%, #f48fb1 100%);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .store-header {
+    text-align: center;
+    padding: 30px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(233, 30, 99, 0.2);
+  }
+  .store-header h1 {
+    font-size: 2.5em;
+    background: linear-gradient(45deg, #e91e63, #9c27b0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  .store-header p { color: #666; }
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 20px;
+  }
+  .product-card {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+  }
+  .product-card:hover { transform: translateY(-5px); }
+  .product-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .product-card h3 { font-size: 1em; margin-bottom: 5px; }
+  .product-card .price { color: #e91e63; font-weight: bold; font-size: 1.2em; }
+  .product-card .stock { font-size: 0.85em; margin: 5px 0; }
+  .in-stock { color: #4caf50; }
+  .out-stock { color: #f44336; }
+
+  /* Chat Button */
+  .chat-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e91e63, #9c27b0);
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(233, 30, 99, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 28px;
+    transition: all 0.3s;
+    animation: pulse 2s infinite;
+  }
+  .chat-btn:hover { transform: scale(1.1); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 8px 25px rgba(233, 30, 99, 0.5); }
+    50% { box-shadow: 0 8px 35px rgba(233, 30, 99, 0.8); }
+  }
+
+  /* Chat Window */
+  .chat-window {
+    position: fixed;
+    bottom: 110px;
+    right: 30px;
+    width: 380px;
+    height: 580px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+    z-index: 9998;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.4s ease;
+  }
+  .chat-window.open { display: flex; }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, #e91e63, #9c27b0);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .chat-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .chat-header-info h3 { font-size: 1em; margin-bottom: 2px; }
+  .chat-header-info .status {
+    font-size: 0.8em;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #4caf50;
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .chat-close {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  .chat-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-body::-webkit-scrollbar { width: 5px; }
+  .chat-body::-webkit-scrollbar-thumb { background: #e91e63; border-radius: 5px; }
+
+  .message {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    line-height: 1.4;
+    animation: fadeIn 0.3s;
+    word-wrap: break-word;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .bot-msg {
+    background: white;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  }
+  .user-msg {
+    background: linear-gradient(135deg, #e91e63, #9c27b0);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 12px 14px;
+    background: white;
+    border-radius: 15px;
+    align-self: flex-start;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  }
+  .typing span {
+    width: 7px; height: 7px;
+    background: #e91e63;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+  }
+  .quick-reply {
+    background: white;
+    border: 1.5px solid #e91e63;
+    color: #e91e63;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quick-reply:hover {
+    background: #e91e63;
+    color: white;
+  }
+
+  .product-card-chat {
+    background: white;
+    border-radius: 12px;
+    padding: 10px;
+    margin: 5px 0;
+    display: flex;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-self: flex-start;
+    max-width: 95%;
+    animation: fadeIn 0.3s;
+  }
+  .product-card-chat img {
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+  .product-card-chat .info { flex: 1; }
+  .product-card-chat h4 { font-size: 0.9em; margin-bottom: 3px; }
+  .product-card-chat .price { color: #e91e63; font-weight: bold; font-size: 0.95em; }
+  .product-card-chat .stock { font-size: 0.75em; margin: 2px 0; }
+  .product-card-chat .actions { display: flex; gap: 5px; margin-top: 5px; }
+  .btn-view, .btn-add {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-view { background: #f3e5f5; color: #9c27b0; }
+  .btn-add { background: #e91e63; color: white; }
+  .btn-view:hover, .btn-add:hover { transform: scale(1.05); }
+  .btn-add.added { background: #4caf50; }
+
+  .chat-input-area {
+    padding: 12px;
+    background: white;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .chat-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1.5px solid #f48fb1;
+    border-radius: 20px;
+    outline: none;
+    font-size: 0.9em;
+  }
+  .chat-input:focus { border-color: #e91e63; }
+  .send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e91e63, #9c27b0);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  /* Admin Button */
+  .admin-btn {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    padding: 10px 20px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.9em;
+    z-index: 9999;
+  }
+
+  /* Admin Panel */
+  .admin-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .admin-panel.open { display: flex; }
+  .admin-content {
+    background: white;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    border-radius: 15px;
+    overflow-y: auto;
+    padding: 25px;
+  }
+  .admin-content h2 {
+    color: #e91e63;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f48fb1;
+    padding-bottom: 10px;
+  }
+  .admin-section { margin-bottom: 20px; }
+  .admin-section h3 { color: #9c27b0; margin-bottom: 10px; font-size: 1.1em; }
+  .admin-section label { display: block; margin-bottom: 5px; font-weight: 500; }
+  .admin-section input, .admin-section textarea, .admin-section select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-family: inherit;
+  }
+  .admin-section textarea { min-height: 80px; resize: vertical; }
+  .admin-btn-save {
+    background: linear-gradient(135deg, #e91e63, #9c27b0);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 1em;
+  }
+  .admin-close {
+    float: right;
+    background: #f44336;
+    color: white;
+    border: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .conversation-log {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85em;
+  }
+  .log-entry { padding: 5px; border-bottom: 1px solid #ddd; }
+  .log-entry strong { color: #e91e63; }
+
+  .cart-info {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    font-weight: bold;
+    color: #e91e63;
+    z-index: 999;
+  }
+
+  @media (max-width: 480px) {
+    .chat-window { width: 95%; right: 2.5%; bottom: 100px; height: 80vh; }
+    .chat-btn { bottom: 20px; right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cart-info">🛒 Cart: <span id="cartCount">0</span> items | Total: PKR <span id="cartTotal">0</span></div>
+
+<div class="store-header">
+  <h1>✨ STRUGGLE BEAUTY ✨</h1>
+  <p>Your Premium Beauty Destination in Pakistan</p>
+</div>
+
+<div class="products-grid" id="productsGrid"></div>
+
+<button class="admin-btn" onclick="toggleAdmin()">⚙️ Admin Panel</button>
+
+<button class="chat-btn" onclick="toggleChat()">💬</button>
+
+<div class="chat-window" id="chatWindow">
+  <div class="chat-header">
+    <div class="chat-avatar">💄</div>
+    <div class="chat-header-info">
+      <h3>Struggle Beauty Assistant</h3>
+      <div class="status"><span class="status-dot"></span> Online now</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">×</button>
+  </div>
+  <div class="chat-body" id="chatBody"></div>
+  <div class="chat-input-area">
+    <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter')sendMessage()">
+    <button class="send-btn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<div class="admin-panel" id="adminPanel">
+  <div class="admin-content">
+    <button class="admin-close" onclick="toggleAdmin()">×</button>
+    <h2>🛠️ Admin Dashboard - Chatbot Control</h2>
+
+    <div class="admin-section">
+      <h3>Welcome Message</h3>
+      <textarea id="welcomeMsg">Hi! 👋 Welcome to STRUGGLE BEAUTY. How can I help you today?</textarea>
+    </div>
+
+    <div class="admin-section">
+      <h3>Support Contact</h3>
+      <label>Email:</label>
+      <input type="email" id="supportEmail" value="support@strugglebeauty.pk">
+      <label>Phone:</label>
+      <input type="text" id="supportPhone" value="+92 300 1234567">
+      <label>WhatsApp:</label>
+      <input type="text" id="supportWhatsapp" value="+92 300 1234567">
+    </div>
+
+    <div class="admin-section">
+      <h3>FAQ Management</h3>
+      <textarea id="faqList" rows="5">delivery: We deliver across Pakistan in 3-5 business days. Free delivery on orders above PKR 5,000.
+returns: You can return products within 7 days if unopened and sealed.
+payment: We accept Cash on Delivery, JazzCash, EasyPaisa, and Bank Transfer.
+discounts: Check our "Offers" section for current deals. Use code BEAUTY10 for 10% off on first order.</textarea>
+    </div>
+
+    <div class="admin-section">
+      <h3>Chatbot Features</h3>
+      <label><input type="checkbox" id="featProducts" checked> Product Recommendations</label>
+      <label><input type="checkbox" id="featCart" checked> Cart Management</label>
+      <label><input type="checkbox" id="featOrders" checked> Order Tracking</label>
+      <label><input type="checkbox" id="featFAQ" checked> FAQ Auto-Responses</label>
+    </div>
+
+    <div class="admin-section">
+      <h3>Conversation Log</h3>
+      <div class="conversation-log" id="conversationLog">
+        <p style="color:#999;">No conversations yet.</p>
+      </div>
+    </div>
+
+    <button class="admin-btn-save" onclick="saveAdminSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<script>
+/* ============ PRODUCT DATABASE ============ */
+const productsDB = [
+  { id: 1, name: "Matte Lipstick - Ruby Red", category: "Makeup", subcategory: "Lips", price: 1850, stock: 25, image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=200", description: "Long-lasting matte lipstick with rich pigment.", ingredients: "Castor Oil, Beeswax, Pigment, Vitamin E", shades: ["Ruby Red", "Pink Nude", "Berry", "Coral"], discount: 0 },
+  { id: 2, name: "Foundation - Natural Beige", category: "Makeup", subcategory: "Face", price: 3500, stock: 15, image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200", description: "Full coverage foundation with 24hr wear.", ingredients: "Water, Glycerin, Silica, Pigments", shades: ["Fair", "Natural Beige", "Warm Tan", "Deep"], discount: 10 },
+  { id: 3, name: "Vitamin C Serum 30ml", category: "Skincare", subcategory: "Serum", price: 2200, stock: 30, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200", description: "Brightening serum with 20% Vitamin C.", ingredients: "Ascorbic Acid, Hyaluronic Acid, Vitamin E", shades: [], discount: 15 },
+  { id: 4, name: "Hydrating Face Moisturizer", category: "Skincare", subcategory: "Moisturizer", price: 1800, stock: 0, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200", description: "Deep hydration for all skin types.", ingredients: "Hyaluronic Acid, Ceramides, Aloe Vera", shades: [], discount: 0 },
+  { id: 5, name: "Argan Hair Oil 100ml", category: "Haircare", subcategory: "Oil", price: 1500, stock: 40, image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=200", description: "Pure Moroccan Argan Oil for silky hair.", ingredients: "100% Pure Argan Oil, Vitamin E", shades: [], discount: 20 },
+  { id: 6, name: "Anti-Dandruff Shampoo", category: "Haircare", subcategory: "Shampoo", price: 950, stock: 50, image: "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?w=200", description: "Gentle formula for dandruff control.", ingredients: "Zinc Pyrithione, Tea Tree Oil, Coconut", shades: [], discount: 0 },
+  { id: 7, name: "Rose Perfume 50ml", category: "Fragrance", subcategory: "Perfume", price: 4500, stock: 12, image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200", description: "Elegant rose fragrance for women.", ingredients: "Rose Extract, Jasmine, Musk, Alcohol", shades: [], discount: 0 },
+  { id: 8, name: "Eyeshadow Palette - Nude", category: "Makeup", subcategory: "Eyes", price: 2800, stock: 18, image: "https://images.unsplash.com/photo-1583241800698-9c2e1c00e5a6?w=200", description: "12-shade nude palette for everyday looks.", ingredients: "Talc, Mica, Pigments, Silica", shades: ["Nude", "Smokey", "Glam"], discount: 25 },
+  { id: 9, name: "Sunscreen SPF 50", category: "Skincare", subcategory: "Sunscreen", price: 1600, stock: 35, image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=200", description: "Broad spectrum UV protection, non-greasy.", ingredients: "Zinc Oxide, Titanium Dioxide, Aloe", shades: [], discount: 0 },
+  { id: 10, name: "Mascara - Volume Boost", category: "Makeup", subcategory: "Eyes", price: 1200, stock: 22, image: "https://images.unsplash.com/photo-1631214524020-3c8f9b6e3a1b?w=200", description: "Volumizing waterproof mascara.", ingredients: "Beeswax, Carbon Black, Polymers", shades: ["Black", "Brown"], discount: 0 },
+  { id: 11, name: "Face Wash - Tea Tree", category: "Skincare", subcategory: "Cleanser", price: 850, stock: 45, image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=200", description: "Deep cleansing face wash for oily skin.", ingredients: "Tea Tree Oil, Salicylic Acid, Glycerin", shades: [], discount: 10 },
+  { id: 12, name: "Hair Conditioner 200ml", category: "Haircare", subcategory: "Conditioner", price: 1100, stock: 28, image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200", description: "Deep conditioning for soft, shiny hair.", ingredients: "Keratin, Argan Oil, Silk Proteins", shades: [], discount: 0 }
+];
+
+/* ============ ORDER DATABASE ============ */
+const ordersDB = {
+  "SB1001": { status: "Delivered", items: [{name: "Matte Lipstick - Ruby Red", qty: 2}, {name: "Vitamin C Serum 30ml", qty: 1}], total: 5900, payment: "Paid", shipping: "Delivered on Sep 28, 2026", customer: "Ayesha K." },
+  "SB1002": { status: "Shipped", items: [{name: "Foundation - Natural Beige", qty: 1}], total: 3500, payment: "Paid", shipping: "Out for delivery - TCS Tracking: TCS9876543", customer: "Sara M." },
+  "SB1003": { status: "Processing", items: [{name: "Argan Hair Oil 100ml", qty: 1}, {name: "Rose Perfume 50ml", qty: 1}], total: 6000, payment: "COD", shipping: "Will ship in 1-2 days", customer: "Fatima A." },
+  "SB1004": { status: "Confirmed", items: [{name: "Eyeshadow Palette - Nude", qty: 1}], total: 2800, payment: "Paid", shipping: "Order confirmed, preparing for dispatch", customer: "Hina R." },
+  "SB1005": { status: "Pending", items: [{name: "Sunscreen SPF 50", qty: 2}], total: 3200, payment: "Pending", shipping: "Awaiting payment confirmation", customer: "Zara T." }
+};
+
+/* ============ STATE ============ */
+let cart = [];
+let conversationLog = [];
+let userState = {};
+let settings = {
+  welcome: "Hi! 👋 Welcome to STRUGGLE BEAUTY. How can I help you today?",
+  supportEmail: "support@strugglebeauty.pk",
+  supportPhone: "+92 300 1234567",
+  supportWhatsapp: "+92 300 1234567",
+  features: { products: true, cart: true, orders: true, faq: true }
+};
+
+/* ============ RENDER PRODUCTS ON PAGE ============ */
+function renderStoreProducts() {
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = productsDB.map(p => `
+    <div class="product-card">
+      <img src="${p.image}" alt="${p.name}">
+      <h3>${p.name}</h3>
+      <div class="price">PKR ${p.price.toLocaleString()} ${p.discount ? `<span style="color:#4caf50;font-size:0.8em;">(${p.discount}% OFF)</span>` : ''}</div>
+      <div class="stock ${p.stock > 0 ? 'in-stock' : 'out-stock'}">${p.stock > 0 ? `✓ In Stock (${p.stock})` : '✗ Out of Stock'}</div>
+    </div>
+  `).join('');
+}
+
+/* ============ CHAT FUNCTIONS ============ */
+function toggleChat() {
+  const cw = document.getElementById('chatWindow');
+  cw.classList.toggle('open');
+  if (cw.classList.contains('open') && document.getElementById('chatBody').children.length === 0) {
+    setTimeout(() => {
+      addBotMessage(settings.welcome);
+      showMainMenu();
+    }, 300);
+  }
+}
+
+function addBotMessage(text, withQuickReplies = null) {
+  const body = document.getElementById('chatBody');
+  const msg = document.createElement('div');
+  msg.className = 'message bot-msg';
+  msg.innerHTML = text;
+  body.appendChild(msg);
+  if (withQuickReplies) {
+    const qr = document.createElement('div');
+    qr.className = 'quick-replies';
+    withQuickReplies.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'quick-reply';
+      btn.textContent = r;
+      btn.onclick = () => handleUserInput(r);
+      qr.appendChild(btn);
+    });
+    body.appendChild(qr);
+  }
+  body.scrollTop = body.scrollHeight;
+  
